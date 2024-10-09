@@ -15,7 +15,7 @@ const app = express();
 app.use(express.static('public'));
 const server = http.createServer(app);
 const io = new Server(server);
-const { cos, sin, PI, random, floor } = Math;
+const { cos, sin, PI, random, floor, abs, hypot } = Math;
 
 class Tree {
   constructor(x, y, index) {
@@ -48,6 +48,11 @@ class Bullet {
   update() {
     this.x += sin(this.angle) * this.speed;
     this.y -= cos(this.angle) * this.speed;
+
+    let m = hypot(640 - this.x, 480 - this.y);
+    if (m > 640) {
+      this.disable = true;
+    }
   }
 }
 
