@@ -148,12 +148,14 @@ class Room {
       })
     });
 
-    io.to(this.id).emit('update', {
-      players: this.getPlayers(),
-      shots: this.shots,
-      smokes: this.smokes,
-      trees: this.trees
-    });
+    if (this.shots.length != 0 || !this.players.some(p => p.keys.length != 0)) {
+      io.to(this.id).emit('update', {
+        players: this.getPlayers(),
+        shots: this.shots,
+        smokes: this.smokes,
+        trees: this.trees
+      });
+    }
 
     this.smokes = [];
   }
@@ -161,14 +163,10 @@ class Room {
 
 /** @type {Room[]} */
 let rooms = [];
-let l = 0;
 
 const gameLoop = () => {
-  let end = Date.now();
   rooms.forEach(room => room.update());
-  let d = end - l;
-  l = end;
-  setTimeout(gameLoop, 1000 / 30 - d);
+  setTimeout(gameLoop, 1000 / 30);
 }
 
 gameLoop();
