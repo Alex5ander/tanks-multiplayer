@@ -3,7 +3,7 @@ const canvas = document.getElementById('canvas');
 canvas.width = 640;
 canvas.height = 480;
 const ctx = canvas.getContext('2d');
-let spriteSheet, tank, barrel, sand, bullet, tracks, smoke, tree;
+let spriteSheet, tank, barrel, sand, bullet, track, smoke, tree;
 
 const socket = io();
 
@@ -11,8 +11,10 @@ let players = [];
 let shots = [];
 let smokes = [];
 let trees = [];
+let tracks = [];
 
-let { sin, cos, PI, floor } = Math;
+let { sin, cos, PI, floor, sqrt } = Math;
+
 let keys = [];
 
 const offcanvas = new OffscreenCanvas(canvas.width, canvas.height);
@@ -22,14 +24,13 @@ const drawSprite = (sprite, rect) =>
   ctx.drawImage(spriteSheet, sprite.x, sprite.y, sprite.width, sprite.height, rect.x, rect.y, rect.w, rect.h);
 
 const loop = () => {
-
-
   if (keys.length) {
     socket.volatile.emit('move', { keys });
   }
-
-  setTimeout(loop, 1000 / 30);
+  requestAnimationFrame(loop);
 }
+
+let lastPosition;
 
 const draw = () => {
   ctx.drawImage(offcanvas, 0, 0);
@@ -38,10 +39,49 @@ const draw = () => {
     drawSprite(tree[e.index], e);
   })
 
-  players.forEach(e => {
+  tracks.forEach(e => {
+    let age = Date.now() - e.time;
+    let opacity = 1 - (age / 1000);
+
     ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.translate(e.ox, e.oy);
+    ctx.rotate(e.angle);
+    ctx.translate(-e.ox, -e.oy);
+    drawSprite(track, e);
+    ctx.restore();
+  });
+
+  if (tracks.length > 10) {
+    tracks.shift();
+  }
+
+  players.forEach(e => {
     let pmx = e.x + e.w / 2;
     let pmy = e.y + e.h / 2;
+
+    if (!lastPosition) {
+      lastPosition = { x: pmx, y: pmy };
+    }
+
+    let dist = sqrt((pmx - lastPosition.x) ** 2 + (pmy - lastPosition.y) ** 2);
+
+    if (dist > 79) {
+      tracks.push({
+        ox: pmx,
+        oy: pmy,
+        angle: e.angle,
+        x: pmx - track.width / 2,
+        y: pmy - track.height / 2,
+        w: track.width,
+        h: track.height,
+        time: Date.now()
+      });
+
+      lastPosition = { x: pmx, y: pmy };
+    }
+
+    ctx.save();
     ctx.translate(pmx, pmy);
     ctx.rotate(e.angle);
     ctx.translate(-pmx, -pmy);
@@ -79,6 +119,7 @@ const draw = () => {
   });
 
   smokes = smokes.filter(e => Date.now() - e.time < 300);
+  tracks = tracks.filter(e => Date.now() - e.time < 900);
 }
 
 socket.on('update', e => {
@@ -107,7 +148,7 @@ window.addEventListener('keyup', e => {
   barrel = sheet.barrelBeige;
   bullet = sheet.bulletBeigeSilver_outline;
   sand = sheet.sand;
-  tracks = sheet.tracksLarge;
+  track = sheet.tracksSmall;
 
   tree = [
     sheet.treeSmall,

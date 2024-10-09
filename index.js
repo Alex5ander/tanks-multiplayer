@@ -48,9 +48,8 @@ class Bullet {
   update() {
     this.x += sin(this.angle) * this.speed;
     this.y -= cos(this.angle) * this.speed;
-
-    let m = hypot(640 - this.x, 480 - this.y);
-    if (m > 640) {
+    let m = abs(hypot(640 - this.x, 480 - this.y));
+    if (m > 1000) {
       this.disable = true;
     }
   }
@@ -64,11 +63,12 @@ class Player {
     this.w = tank.width;
     this.h = tank.height;
     this.angle = 0;
+    this.kills = 0;
 
     this.speed = 5;
     this.rotatespeed = 5;
     this.shotDelay = 750;
-    this.life = 255;
+    this.life = 100;
     this.keys = [];
     this.shotLastTime = 0;
     this.barrel = { width: barrel.width, height: barrel.height, angle: 0 };
@@ -98,16 +98,20 @@ class Room {
       KeyW: (player) => {
         player.x += sin(player.angle) * player.speed;
         player.y -= cos(player.angle) * player.speed;
+        player.moving = true;
       },
       KeyS: (player) => {
         player.x -= sin(player.angle) * player.speed;
         player.y += cos(player.angle) * player.speed;
+        player.moving = true;
       },
       KeyA: (player) => {
         player.angle -= player.rotatespeed * PI / 180;
+        player.moving = true;
       },
       KeyD: (player) => {
         player.angle += player.rotatespeed * PI / 180;
+        player.moving = true;
       },
       KeyZ: (player) => {
         player.barrel.angle -= player.rotatespeed * PI / 180;
@@ -128,10 +132,11 @@ class Room {
         }
       }
     }
+
     this.players.forEach(player => {
       player.keys.forEach(key => { actions[key]?.(player) })
       player.keys = [];
-    })
+    });
 
     this.shots = this.shots.filter(shot => !shot.disable);
 
@@ -151,12 +156,12 @@ class Room {
     if (this.shots.length != 0 || !this.players.some(p => p.keys.length != 0)) {
       io.to(this.id).emit('update', {
         players: this.getPlayers(),
-        shots: this.shots,
+        shots: this.shots.map(({ owner, ...e }) => e),
         smokes: this.smokes,
         trees: this.trees
       });
     }
-
+    this.players = this.players.map(p => { p.moving = false; return p })
     this.smokes = [];
   }
 }
