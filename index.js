@@ -63,12 +63,13 @@ class Player {
     this.w = tank.width;
     this.h = tank.height;
     this.angle = 0;
-    this.kills = 0;
 
+    this.kills = 0;
+    this.destroyed = false;
     this.speed = 5;
     this.rotatespeed = 5;
     this.shotDelay = 750;
-    this.life = 100;
+    this.life = 1;
     this.keys = [];
     this.shotLastTime = 0;
     this.barrel = { width: barrel.width, height: barrel.height, angle: 0 };
@@ -98,20 +99,16 @@ class Room {
       KeyW: (player) => {
         player.x += sin(player.angle) * player.speed;
         player.y -= cos(player.angle) * player.speed;
-        player.moving = true;
       },
       KeyS: (player) => {
         player.x -= sin(player.angle) * player.speed;
         player.y += cos(player.angle) * player.speed;
-        player.moving = true;
       },
       KeyA: (player) => {
         player.angle -= player.rotatespeed * PI / 180;
-        player.moving = true;
       },
       KeyD: (player) => {
         player.angle += player.rotatespeed * PI / 180;
-        player.moving = true;
       },
       KeyZ: (player) => {
         player.barrel.angle -= player.rotatespeed * PI / 180;
@@ -144,10 +141,12 @@ class Room {
       shot.update();
 
       this.players.forEach(player => {
-        if (!shot.disable && shot.owner != player && player.x + player.w > shot.x && player.x < shot.x + shot.w && player.y + player.h > shot.y && player.y < shot.y + shot.h) {
-          player.life -= 10;
+        if (!shot.disable && shot.owner != player && player.life > 0.1 && player.x + player.w > shot.x && player.x < shot.x + shot.w && player.y + player.h > shot.y && player.y < shot.y + shot.h) {
+          player.life -= 0.1;
+          if (player.life <= 0) {
+            player.destroyed = true;
+          }
           shot.disable = true;
-
           this.smokes.push(new Smoke(shot.x - shot.w / 2, shot.y - shot.h / 2));
         }
       })
@@ -161,7 +160,6 @@ class Room {
         trees: this.trees
       });
     }
-    this.players = this.players.map(p => { p.moving = false; return p })
     this.smokes = [];
   }
 }
