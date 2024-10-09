@@ -22,6 +22,16 @@ const drawSprite = (sprite, rect) =>
   ctx.drawImage(spriteSheet, sprite.x, sprite.y, sprite.width, sprite.height, rect.x, rect.y, rect.w, rect.h);
 
 const loop = () => {
+
+
+  if (keys.length) {
+    socket.volatile.emit('move', { keys });
+  }
+
+  setTimeout(loop, 1000 / 30);
+}
+
+const draw = () => {
   ctx.drawImage(offcanvas, 0, 0);
 
   trees.forEach(e => {
@@ -58,22 +68,25 @@ const loop = () => {
   });
 
   smokes.forEach(e => {
-    let index = 1;
-    drawSprite(smoke[index], { ...e, w: smoke[index].width, h: smoke[index].height });
+    let index = floor((2 / 250) * (Date.now() - e.time));
+
+    drawSprite(smoke[index], {
+      x: e.x - smoke[index].width / 2,
+      y: e.y - smoke[index].height / 2,
+      w: smoke[index].width,
+      h: smoke[index].height
+    });
   });
 
-  if (keys.length) {
-    socket.volatile.emit('move', { keys });
-  }
-
-  setTimeout(loop, 1000 / 30);
+  smokes = smokes.filter(e => Date.now() - e.time < 300);
 }
 
 socket.on('update', e => {
   players = e.players;
   shots = e.shots;
-  smokes = e.smokes;
   trees = e.trees;
+  e.smokes.forEach(s => smokes.push({ ...s, time: Date.now() }))
+  draw();
 });
 
 window.addEventListener('keydown', e => {

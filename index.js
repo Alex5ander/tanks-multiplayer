@@ -31,10 +31,6 @@ class Smoke {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.time = Date.now();
-  }
-  isValid() {
-    return Date.now() - this.time < 200;
   }
 }
 
@@ -122,8 +118,7 @@ class Room {
           bullet.angle = player.barrel.angle + player.angle;
           bullet.owner = player;
           this.shots.push(bullet);
-
-          this.smokes.push(new Smoke(bullet.x - bullet.w / 2, bullet.y - bullet.h / 2));
+          this.smokes.push(new Smoke(bullet.x + bullet.w / 2, bullet.y + bullet.h / 2));
           player.shotLastTime = Date.now();
         }
       }
@@ -161,10 +156,14 @@ class Room {
 
 /** @type {Room[]} */
 let rooms = [];
+let l = 0;
 
 const gameLoop = () => {
+  let end = Date.now();
   rooms.forEach(room => room.update());
-  setTimeout(gameLoop, 1000 / 30);
+  let d = end - l;
+  l = end;
+  setTimeout(gameLoop, 1000 / 30 - d);
 }
 
 gameLoop();
