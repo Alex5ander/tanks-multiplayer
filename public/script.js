@@ -6,7 +6,7 @@ const ASPECT_RATIO = WIDTH / HEIGHT;
 canvas.width = WIDTH;
 canvas.height = HEIGHT;
 const ctx = canvas.getContext('2d');
-let spriteSheet, tank, barrel, bullet, smoke, tree, terrain;
+let spriteSheet, tanks, barrels, bullet, smoke, terrain, objects_sprites;
 
 let socket;
 
@@ -22,8 +22,16 @@ let keys = [];
 const offcanvas = new OffscreenCanvas(canvas.width, canvas.height);
 const offctx = offcanvas.getContext('2d');
 
-const drawSprite = (sprite, rect) =>
+const drawSprite = (sprite, rect) => {
+  let mx = rect.x + rect.w / 2;
+  let my = rect.y + rect.h / 2;
+  ctx.save();
+  ctx.translate(mx, my);
+  ctx.rotate(rect.angle);
+  ctx.translate(-mx, -my);
   ctx.drawImage(spriteSheet, sprite.x, sprite.y, sprite.width, sprite.height, rect.x, rect.y, rect.w, rect.h);
+  ctx.restore();
+}
 
 const drawTerrain = (index) => {
   for (let i = 0; i < canvas.width * canvas.height; i++) {
@@ -36,9 +44,7 @@ const drawTerrain = (index) => {
 const draw = () => {
   ctx.drawImage(offcanvas, 0, 0);
 
-  objects.forEach(e => {
-    drawSprite(tree[e.index], e);
-  })
+  objects.forEach(e => drawSprite(objects_sprites[e.index], e))
 
   players.forEach(e => {
     let pmx = e.x + e.w / 2;
@@ -59,7 +65,7 @@ const draw = () => {
 
       ctx.save();
       ctx.fillStyle = '#fff';
-      ctx.font = '32px Arial';
+      ctx.font = '16px Arial';
       ctx.textBaseline = 'top';
       ctx.fillText('Baixas: ' + e.kills, 8, 8);
 
@@ -67,38 +73,24 @@ const draw = () => {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.fillText('Jogador', pmx, pmy - e.h);
-      ctx.restore()
+      ctx.restore();
     }
 
     if (!e.destroyed) {
-      ctx.save();
-      ctx.translate(pmx, pmy);
-      ctx.rotate(e.angle);
-      ctx.translate(-pmx, -pmy);
       ctx.fillStyle = e.life > 0.5 ? '#00ff0088' : '#ff000088';
-      ctx.fillRect(pmx - e.life * e.w / 2, pmy + e.h / 1.5, e.life * e.w, 10);
-      drawSprite(tank, e);
-      ctx.restore();
+      ctx.fillRect(pmx - e.life * e.w / 2, pmy - e.h, e.life * e.w, 10);
+      drawSprite(tanks[e.sprite], e);
 
       ctx.save();
       ctx.translate(pmx, pmy);
       ctx.rotate(e.angle + e.barrel.angle - PI);
       ctx.translate(-pmx, -pmy);
-      drawSprite(barrel, { ...e.barrel, x: pmx - e.barrel.w / 2, y: pmy });
+      drawSprite(barrels[e.barrel.sprite], { ...e.barrel, x: pmx - e.barrel.w / 2, y: pmy, angle: 0 });
       ctx.restore();
     }
   });
 
-  shots.forEach(e => {
-    ctx.save();
-    let mx = e.x + e.w / 2;
-    let my = e.y + e.h / 2;
-    ctx.translate(mx, my);
-    ctx.rotate(e.angle);
-    ctx.translate(-mx, -my);
-    ctx.drawImage(spriteSheet, bullet.x, bullet.y, bullet.width, bullet.height, e.x, e.y, e.w, e.h)
-    ctx.restore();
-  });
+  shots.forEach(e => drawSprite(bullet, e));
 
   smokes = smokes.filter(e => Date.now() - e.time < 300);
 
@@ -131,13 +123,35 @@ const resize = () => {
 (async () => {
   const sheet = await (await fetch('sheet.json')).json();
 
-  tank = sheet.tankBeige;
-  barrel = sheet.barrelBeige;
+  tanks = [
+    sheet.tankBeige,
+    sheet.tankBlack,
+    sheet.tankBlue,
+    sheet.tankGreen,
+    sheet.tankRed,
+    sheet.tankBeige_outline,
+    sheet.tankBlack_outline,
+    sheet.tankBlue_outline,
+    sheet.tankGreen_outline,
+    sheet.tankRed_outline
+  ];
+  barrels = [
+    sheet.barrelBeige,
+    sheet.barrelBlack,
+    sheet.barrelBlue,
+    sheet.barrelGreen,
+    sheet.barrelRed,
+    sheet.barrelBeige_outline,
+    sheet.barrelBlack_outline,
+    sheet.barrelBlue_outline,
+    sheet.barrelGreen_outline,
+    sheet.barrelRed_outline
+  ];
   bullet = sheet.bulletBeigeSilver_outline;
 
-  terrain = [sheet.sand, sheet.grass, sheet.dirt]
+  terrain = [sheet.sand, sheet.grass, sheet.dirt];
 
-  tree = [sheet.treeSmall, sheet.treeLarge];
+  objects_sprites = [sheet.treeSmall, sheet.treeLarge, sheet.barrelGreen_up, sheet.barrelGrey_up, sheet.barrelRed_up];
 
   smoke = [sheet.smokeGrey3, sheet.smokeGrey2, sheet.smokeGrey1];
 

@@ -2,14 +2,36 @@ import { randomUUID } from 'crypto';
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import sheet from './sheet.json' assert {type: 'json'};
+import sheet from './public/sheet.json' assert {type: 'json'};
 
-const tank = sheet.tankBeige;
+const tanks = [
+  sheet.tankBeige,
+  sheet.tankBlack,
+  sheet.tankBlue,
+  sheet.tankGreen,
+  sheet.tankRed,
+  sheet.tankBeige_outline,
+  sheet.tankBlack_outline,
+  sheet.tankBlue_outline,
+  sheet.tankGreen_outline,
+  sheet.tankRed_outline
+];
+
+const barrels = [
+  sheet.barrelBeige,
+  sheet.barrelBlack,
+  sheet.barrelBlue,
+  sheet.barrelGreen,
+  sheet.barrelRed,
+  sheet.barrelBeige_outline,
+  sheet.barrelBlack_outline,
+  sheet.barrelBlue_outline,
+  sheet.barrelGreen_outline,
+  sheet.barrelRed_outline
+];
+
 const bullet = sheet.bulletBeigeSilver_outline;
-const barrel = sheet.barrelBeige;
-const treeSmall = sheet.treeSmall;
-const treeLarge = sheet.treeLarge;
-const trees = [treeSmall, treeLarge];
+const objects = [sheet.treeSmall, sheet.treeLarge, sheet.barrelGreen_up, sheet.barrelGrey_up, sheet.barrelRed_up];
 const scale = 0.5;
 
 const app = express();
@@ -18,12 +40,13 @@ const server = http.createServer(app);
 const io = new Server(server);
 const { cos, sin, PI, random, floor, abs, hypot } = Math;
 
-class Tree {
+class WorldObject {
   constructor(x, y, index) {
     this.x = x;
     this.y = y;
-    this.w = trees[index].width * scale;
-    this.h = trees[index].height * scale;
+    this.angle = random() * PI * 2;
+    this.w = objects[index].width * scale;
+    this.h = objects[index].height * scale;
     this.index = index;
   }
 }
@@ -32,6 +55,7 @@ class Smoke {
   constructor(x, y) {
     this.x = x;
     this.y = y;
+    this.angle = random() * PI * 2;
     this.sizes = [
       sheet.smokeGrey3,
       sheet.smokeGrey2,
@@ -63,13 +87,15 @@ class Bullet {
 
 class Player {
   constructor(id) {
+    let index = floor(random() * tanks.length);
     this.id = id;
-    this.x = floor(random() * (640 - tank.width));
-    this.y = floor(random() * (480 - tank.height));
-    this.w = tank.width * scale;
-    this.h = tank.height * scale;
-    this.angle = Math.random() * PI * 2;
+    this.x = floor(random() * (640 - tanks[index].width));
+    this.y = floor(random() * (480 - tanks[index].height));
+    this.w = tanks[index].width * scale;
+    this.h = tanks[index].height * scale;
+    this.angle = random() * PI * 2;
 
+    this.sprite = index;
     this.kills = 0;
     this.destroyed = false;
     this.speed = 5;
@@ -78,12 +104,12 @@ class Player {
     this.life = 1;
     this.keys = [];
     this.shotLastTime = 0;
-    this.barrel = { w: barrel.width * scale, h: barrel.height * scale, angle: 0 };
+    this.barrel = { sprite: index, w: barrels[index].width * scale, h: barrels[index].height * scale, angle: 0 };
     this.deadTime = 0;
   }
   respawn() {
-    this.x = floor(random() * (640 - tank.width));
-    this.y = floor(random() * (480 - tank.height));
+    this.x = floor(random() * (640 - this.w));
+    this.y = floor(random() * (480 - this.h));
     this.angle = Math.random() * PI * 2;
     this.destroyed = false;
     this.life = 1;
@@ -103,7 +129,7 @@ class Room {
     this.objects = [];
     this.terrain = floor(random() * 3);
     for (let i = 0; i < 12; i++) {
-      this.objects.push(new Tree(random() * 640, random() * 480, floor(random() * 2)))
+      this.objects.push(new WorldObject(random() * 640, random() * 480, floor(random() * objects.length)))
     }
   }
   /** @param {Player} player  */
@@ -119,9 +145,11 @@ class Room {
       player.y = 0;
     }
   }
-  /** @param {Player} player */
+  isOverlap(a, b) {
+    return hypot((a.x + a.h / 2) - (b.x + b.h / 2), a.y + a.h / 2 - (b.y + b.h / 2)) < (a.h + b.h) / 2;
+  }
   checkCollisions(player) {
-    return this.objects.some(t => hypot((player.x + player.h / 2) - (t.x + t.h / 2), player.y + player.h / 2 - (t.y + t.h / 2)) < (player.h + t.h) / 2) || this.players.filter(t => t != player).some(t => hypot((player.x + player.h / 2) - (t.x + t.h / 2), player.y + player.h / 2 - (t.y + t.h / 2)) < (player.h + t.h) / 2);
+    return this.objects.some(t => this.isOverlap(player, t) || this.players.filter(t => t != player).some(t => this.isOverlap(player, t)));
   }
   update() {
     let actions = {
@@ -139,8 +167,8 @@ class Room {
         player.y += cos(player.angle) * player.speed;
         this.checkBounds(player);
         if (this.checkCollisions(player)) {
-          player.x -= sin(player.angle) * player.speed;
-          player.y += cos(player.angle) * player.speed;
+          player.x += sin(player.angle) * player.speed;
+          player.y -= cos(player.angle) * player.speed;
         }
       },
       KeyA: (player) => {
@@ -157,10 +185,11 @@ class Room {
       },
       Space: (player) => {
         if (Date.now() - player.shotLastTime > player.shotDelay) {
+          let bangle = player.barrel.angle + player.angle;
           let bullet = new Bullet();
-          bullet.x = (player.x + player.w / 2) - bullet.w / 2 + sin(player.barrel.angle + player.angle) * player.barrel.h;
-          bullet.y = (player.y + player.h / 2) - bullet.h / 2 - cos(player.barrel.angle + player.angle) * player.barrel.h;
-          bullet.angle = player.barrel.angle + player.angle;
+          bullet.x = (player.x + player.w / 2) - bullet.w / 2 + sin(bangle) * player.barrel.h;
+          bullet.y = (player.y + player.h / 2) - bullet.h / 2 - cos(bangle) * player.barrel.h;
+          bullet.angle = bangle;
           bullet.owner = player;
           this.shots.push(bullet);
           this.smokes.push(new Smoke(bullet.x + bullet.w / 2, bullet.y + bullet.h / 2));
@@ -212,7 +241,13 @@ class Room {
     this.shots = this.shots.filter(shot => !shot.disable);
 
     if (this.players.some(e => e.destroyed)) {
-      this.players.filter(e => e.destroyed && Date.now() - e.deadTime >= 3000).forEach(e => e.respawn())
+      this.players.filter(e => e.destroyed && Date.now() - e.deadTime >= 3000).forEach(e => {
+
+        e.respawn();
+        while (this.checkCollisions(e)) {
+          e.respawn();
+        }
+      })
     }
 
     io.to(this.id).emit('update', {
