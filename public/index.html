@@ -6,8 +6,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+    }
+
     canvas {
-      border: 1px solid #000;
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      display: block;
+      aspect-ratio: 640/480;
+      user-select: none;
     }
   </style>
 </head>

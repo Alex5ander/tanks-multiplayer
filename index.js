@@ -10,6 +10,7 @@ const barrel = sheet.barrelBeige;
 const treeSmall = sheet.treeSmall;
 const treeLarge = sheet.treeLarge;
 const trees = [treeSmall, treeLarge];
+const scale = 0.5;
 
 const app = express();
 app.use(express.static('public'));
@@ -21,8 +22,8 @@ class Tree {
   constructor(x, y, index) {
     this.x = x;
     this.y = y;
-    this.w = trees[index].width;
-    this.h = trees[index].height;
+    this.w = trees[index].width * scale;
+    this.h = trees[index].height * scale;
     this.index = index;
   }
 }
@@ -31,6 +32,11 @@ class Smoke {
   constructor(x, y) {
     this.x = x;
     this.y = y;
+    this.sizes = [
+      sheet.smokeGrey3,
+      sheet.smokeGrey2,
+      sheet.smokeGrey1
+    ].map(e => ({ ...e, width: e.width * scale, height: e.height * scale }))
   }
 }
 
@@ -38,8 +44,8 @@ class Bullet {
   constructor(x, y, angle, owner) {
     this.x = x;
     this.y = y;
-    this.w = bullet.width;
-    this.h = bullet.height;
+    this.w = bullet.width * scale;
+    this.h = bullet.height * scale;
     this.angle = angle;
     this.speed = 15;
     this.owner = owner;
@@ -48,7 +54,7 @@ class Bullet {
   update() {
     this.x += sin(this.angle) * this.speed;
     this.y -= cos(this.angle) * this.speed;
-    let m = abs(hypot(640 - this.x, 480 - this.y));
+    let m = abs(hypot(320 - this.x, 240 - this.y));
     if (m > 1000) {
       this.disable = true;
     }
@@ -58,11 +64,11 @@ class Bullet {
 class Player {
   constructor(id) {
     this.id = id;
-    this.x = floor(random() * 640);
-    this.y = floor(random() * 480);
-    this.w = tank.width;
-    this.h = tank.height;
-    this.angle = 0;
+    this.x = floor(random() * (640 - tank.width));
+    this.y = floor(random() * (480 - tank.height));
+    this.w = tank.width * scale;
+    this.h = tank.height * scale;
+    this.angle = Math.random() * PI * 2;
 
     this.kills = 0;
     this.destroyed = false;
@@ -72,7 +78,15 @@ class Player {
     this.life = 1;
     this.keys = [];
     this.shotLastTime = 0;
-    this.barrel = { width: barrel.width, height: barrel.height, angle: 0 };
+    this.barrel = { w: barrel.width * scale, h: barrel.height * scale, angle: 0 };
+    this.deadTime = 0;
+  }
+  respawn() {
+    this.x = floor(random() * (640 - tank.width));
+    this.y = floor(random() * (480 - tank.height));
+    this.angle = Math.random() * PI * 2;
+    this.destroyed = false;
+    this.life = 1;
   }
 }
 
@@ -83,26 +97,51 @@ class Room {
     this.players = [];
     /** @type {Bullet[]} */
     this.shots = [];
-    /** @type {Smoke} */
+    /** @type {Smoke[]} */
     this.smokes = [];
-    /** @type {Tree} */
-    this.trees = [];
-    for (let i = 0; i < 5; i++) {
-      this.trees.push(new Tree(random() * 640, random() * 480, floor(random() * 2)))
+    /** @type {Tree[]} */
+    this.objects = [];
+    this.terrain = floor(random() * 3);
+    for (let i = 0; i < 12; i++) {
+      this.objects.push(new Tree(random() * 640, random() * 480, floor(random() * 2)))
     }
   }
-  getPlayers() {
-    return this.players.map(({ id, ...rest }) => ({ ...rest }))
+  /** @param {Player} player  */
+  checkBounds(player) {
+    if (player.x + player.h > 640) {
+      player.x = 640 - player.h;
+    }
+    if (player.x < 0) {
+      player.x = 0;
+    } if (player.y + player.h > 480) {
+      player.y = 480 - player.h;
+    } if (player.y < 0) {
+      player.y = 0;
+    }
+  }
+  /** @param {Player} player */
+  checkCollisions(player) {
+    return this.objects.some(t => hypot((player.x + player.h / 2) - (t.x + t.h / 2), player.y + player.h / 2 - (t.y + t.h / 2)) < (player.h + t.h) / 2) || this.players.filter(t => t != player).some(t => hypot((player.x + player.h / 2) - (t.x + t.h / 2), player.y + player.h / 2 - (t.y + t.h / 2)) < (player.h + t.h) / 2);
   }
   update() {
     let actions = {
       KeyW: (player) => {
         player.x += sin(player.angle) * player.speed;
         player.y -= cos(player.angle) * player.speed;
+        this.checkBounds(player);
+        if (this.checkCollisions(player)) {
+          player.x -= sin(player.angle) * player.speed;
+          player.y += cos(player.angle) * player.speed;
+        }
       },
       KeyS: (player) => {
         player.x -= sin(player.angle) * player.speed;
         player.y += cos(player.angle) * player.speed;
+        this.checkBounds(player);
+        if (this.checkCollisions(player)) {
+          player.x -= sin(player.angle) * player.speed;
+          player.y += cos(player.angle) * player.speed;
+        }
       },
       KeyA: (player) => {
         player.angle -= player.rotatespeed * PI / 180;
@@ -119,8 +158,8 @@ class Room {
       Space: (player) => {
         if (Date.now() - player.shotLastTime > player.shotDelay) {
           let bullet = new Bullet();
-          bullet.x = (player.x + player.w / 2) - bullet.w / 2 + sin(player.barrel.angle + player.angle) * player.barrel.height;
-          bullet.y = (player.y + player.h / 2) - bullet.h / 2 - cos(player.barrel.angle + player.angle) * player.barrel.height;
+          bullet.x = (player.x + player.w / 2) - bullet.w / 2 + sin(player.barrel.angle + player.angle) * player.barrel.h;
+          bullet.y = (player.y + player.h / 2) - bullet.h / 2 - cos(player.barrel.angle + player.angle) * player.barrel.h;
           bullet.angle = player.barrel.angle + player.angle;
           bullet.owner = player;
           this.shots.push(bullet);
@@ -131,35 +170,58 @@ class Room {
     }
 
     this.players.forEach(player => {
-      player.keys.forEach(key => { actions[key]?.(player) })
+      if (!player.destroyed) {
+        player.keys.forEach(key => { actions[key]?.(player) })
+      }
       player.keys = [];
     });
-
-    this.shots = this.shots.filter(shot => !shot.disable);
 
     this.shots.forEach(shot => {
       shot.update();
 
-      this.players.forEach(player => {
-        if (!shot.disable && shot.owner != player && player.life > 0.1 && player.x + player.w > shot.x && player.x < shot.x + shot.w && player.y + player.h > shot.y && player.y < shot.y + shot.h) {
-          player.life -= 0.1;
-          if (player.life <= 0) {
-            player.destroyed = true;
+      if (!shot.disable) {
+        this.players.find(player => {
+          if (shot.owner != player && !player.destroyed && player.x + player.w > shot.x && player.x < shot.x + shot.w && player.y + player.h > shot.y && player.y < shot.y + shot.h) {
+            player.life -= 0.25;
+            if (player.life <= 0) {
+              shot.owner.kills += 1;
+              player.life = 0;
+              player.destroyed = true;
+              player.deadTime = Date.now();
+              let randomSize = 5 + floor(random() * 10);
+              for (let i = 0; i < randomSize; i++) {
+                let x = (player.x + player.w / 2) + floor(10 - random() * 10);
+                let y = (player.y + player.h / 2) + floor(10 - random() * 10);
+                this.smokes.push(new Smoke(x, y));
+              }
+            }
+            shot.disable = true;
+            this.smokes.push(new Smoke(shot.x - shot.w / 2, shot.y - shot.h / 2));
           }
-          shot.disable = true;
-          this.smokes.push(new Smoke(shot.x - shot.w / 2, shot.y - shot.h / 2));
-        }
-      })
+        });
+
+        this.objects.forEach(o => {
+          if (o.x + o.w > shot.x && o.x < shot.x + shot.w && o.y + o.h > shot.y && o.y < shot.y + shot.h) {
+            shot.disable = true;
+            this.smokes.push(new Smoke(shot.x - shot.w / 2, shot.y - shot.h / 2));
+          }
+        })
+      }
     });
 
-    if (this.shots.length != 0 || !this.players.some(p => p.keys.length != 0)) {
-      io.to(this.id).emit('update', {
-        players: this.getPlayers(),
-        shots: this.shots.map(({ owner, ...e }) => e),
-        smokes: this.smokes,
-        trees: this.trees
-      });
+    this.shots = this.shots.filter(shot => !shot.disable);
+
+    if (this.players.some(e => e.destroyed)) {
+      this.players.filter(e => e.destroyed && Date.now() - e.deadTime >= 3000).forEach(e => e.respawn())
     }
+
+    io.to(this.id).emit('update', {
+      players: this.players,
+      shots: this.shots,
+      smokes: this.smokes,
+      objects: this.objects
+    });
+
     this.smokes = [];
   }
 }
@@ -183,16 +245,20 @@ io.on('connection', socket => {
   }
 
   let player = new Player(socket.id);
+  while (room.checkCollisions(player)) {
+    player.respawn();
+  }
   room.players.push(player);
   socket.join(room.id);
 
-  let players = room.getPlayers();
-  const { shots, smokes, trees } = room;
-  io.to(room.id).emit('update', {
+  let players = room.players;
+  const { shots, smokes, objects } = room;
+  io.to(room.id).emit('join', {
+    terrain: room.terrain,
     players,
     shots,
     smokes,
-    trees
+    objects
   });
 
   socket.on('move', (data) => { player.keys = data.keys })
@@ -202,13 +268,13 @@ io.on('connection', socket => {
     if (room.players.length == 0) {
       rooms = rooms.filter(r => r.id != room.id);
     }
-    let players = room.getPlayers();
-    const { shots, smokes, trees } = room;
+    let players = room.players;
+    const { shots, smokes, objects } = room;
     socket.to(room.id).emit('update', {
       players,
       shots,
       smokes,
-      trees
+      objects
     });
   })
 });
