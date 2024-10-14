@@ -4,6 +4,8 @@ import http from 'http';
 import { Server } from 'socket.io';
 import sheet from './public/sheet.json' assert {type: 'json'};
 
+const PORT = process.env.PORT || 4000;
+
 const tanks = [
   sheet.tankBeige,
   sheet.tankBlack,
@@ -314,4 +316,4 @@ io.on('connection', socket => {
   })
 });
 
-server.listen(3000);
+server.listen(PORT);
