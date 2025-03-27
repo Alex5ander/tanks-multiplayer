@@ -16,5 +16,8 @@
     "socket.io": "^4.8.0",
     "socket.io-msgpack-parser": "^3.0.2",
     "tanks-multiplayer-server": "file:"
+  },
+  "engines": {
+    "node": "^16"
   }
 }
