@@ -1,23 +1,23 @@
 {
-  "name": "tanks-multiplayer",
+  "name": "t",
   "version": "1.0.0",
-  "main": "script.js",
+  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "vite",
-    "dev": "vite dev",
-    "build": "vite build"
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
-  "devDependencies": {
-    "vite": "^6.2.3"
-  },
   "dependencies": {
-    "socket.io-client": "^4.8.1",
+    "socket.io": "^4.8.0",
     "socket.io-msgpack-parser": "^3.0.2",
-    "tanks-multiplayer": "file:"
+    "t": "file:"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0"
   }
 }

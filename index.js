@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import parser from 'socket.io-msgpack-parser';
 import { Server } from 'socket.io';
 import fs from 'fs';
-const sheet = JSON.parse(fs.readFileSync("../assets/sheet.json"));
+const sheet = JSON.parse(fs.readFileSync("./sheet.json"));
 
 const io = new Server({ cors: { origin: '*' }, parser });
 
