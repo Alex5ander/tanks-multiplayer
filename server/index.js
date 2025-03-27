@@ -1,10 +1,12 @@
 import { randomUUID } from 'crypto';
-import express from 'express';
-import http from 'http';
+import parser from 'socket.io-msgpack-parser';
 import { Server } from 'socket.io';
-import sheet from './public/sheet.json' assert {type: 'json'};
+import fs from 'fs';
+const sheet = JSON.parse(fs.readFileSync("../assets/sheet.json"));
 
-const PORT = process.env.PORT || 4000;
+const io = new Server({ cors: { origin: '*' }, parser });
+
+const PORT = process.env.PORT || 3000;
 
 const tanks = [
   sheet.tankBeige,
@@ -36,10 +38,6 @@ const bullet = sheet.bulletBeigeSilver_outline;
 const objects = [sheet.treeSmall, sheet.treeLarge, sheet.barrelGreen_up, sheet.barrelGrey_up, sheet.barrelRed_up];
 const scale = 0.5;
 
-const app = express();
-app.use(express.static('public'));
-const server = http.createServer(app);
-const io = new Server(server);
 const { cos, sin, PI, random, floor, abs, hypot } = Math;
 
 class WorldObject {
@@ -316,4 +314,4 @@ io.on('connection', socket => {
   })
 });
 
-server.listen(PORT);
+io.listen(PORT);

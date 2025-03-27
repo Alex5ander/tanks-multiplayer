@@ -1,3 +1,8 @@
+import { io, Socket } from 'socket.io-client';
+import parser from 'socket.io-msgpack-parser';
+import sheet from './assets/sheet.json';
+import sheet_tanks from './assets/sheet_tanks.png';
+
 /** @type {HTMLCanvasElement} */
 const canvas = document.getElementById('canvas');
 const WIDTH = 640;
@@ -8,6 +13,7 @@ canvas.height = HEIGHT;
 const ctx = canvas.getContext('2d');
 let spriteSheet, tanks, barrels, bullet, smoke, terrain, objects_sprites;
 
+/** @type {Socket} */
 let socket;
 
 let players = [];
@@ -121,8 +127,6 @@ const resize = () => {
 }
 
 (async () => {
-  const sheet = await (await fetch('sheet.json')).json();
-
   tanks = [
     sheet.tankBeige,
     sheet.tankBlack,
@@ -156,10 +160,10 @@ const resize = () => {
   smoke = [sheet.smokeGrey3, sheet.smokeGrey2, sheet.smokeGrey1];
 
   spriteSheet = new Image();
-  spriteSheet.src = "./sheet_tanks.png";
+  spriteSheet.src = sheet_tanks;
   spriteSheet.onload = () => {
 
-    socket = io();
+    socket = io('http://localhost:3000', { parser });
 
     socket.on('join', e => {
       players = e.players;
