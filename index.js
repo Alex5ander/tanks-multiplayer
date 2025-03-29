@@ -71,20 +71,6 @@ class WorldObject {
     this.index = index;
   }
 }
-
-// class Smoke {
-//   constructor(x, y) {
-//     this.x = x;
-//     this.y = y;
-//     this.angle = random() * PI * 2;
-//     this.sizes = [
-//       sheet.smokeGrey3,
-//       sheet.smokeGrey2,
-//       sheet.smokeGrey1
-//     ].map(e => ({ ...e, width: e.width * scale, height: e.height * scale }))
-//   }
-// }
-
 class Bullet {
   constructor() {
     this.x = 0;
